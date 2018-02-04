@@ -1,47 +1,48 @@
 import React from 'react';
-
-function createStore(reducer, initialState) {
-  let state = initialState;
-  const listeners = [];
-
-  const subscribe = (listener) => (
-    listeners.push(listener)
-  );
-
-  const getState = () => (state);
-
-  const dispatch = (action) => {
-    state = reducer(state, action);
-    listeners.forEach(l => l());
-  };
-
-  return {
-    subscribe,
-    getState,
-    dispatch,
-  };
-}
+import { createStore } from 'redux';
+import uuid from 'uuid';
 
 function reducer(state, action) {
   if (action.type === 'ADD_MESSAGE') {
+    const newMessage = {
+      text: action.text,
+      timestamp: Date.now(),
+      id: uuid.v4()
+    };
     return {
-      messages: state.messages.concat(action.message),
+      messages: state.messages.concat(newMessage)
     };
   } else if (action.type === 'DELETE_MESSAGE') {
     return {
-      messages: [
-        ...state.messages.slice(0, action.index),
-        ...state.messages.slice(
-          action.index + 1, state.messages.length
-        ),
-      ],
+      messages: state.messages.filter((m) => (
+        m.id !== action.id
+      ))
     };
   } else {
     return state;
   }
 }
 
-const initialState = { messages: [] };
+const initialState = {
+  activeThreadId: '1-fca2', // New state property 
+  threads: [ // Two threads in state
+    {
+    id: '1-fca2', // hardcoded pseudo-UUID 
+    title: 'Buzz Aldrin',
+    messages: [
+      { // This thread starts with a single message already 
+        text: 'Twelve minutes to ignition.',
+        timestamp: Date.now(),
+        id: uuid.v4(),
+      }, 
+    ],
+  }, {
+        id: '2-be91',
+        title: 'Michael Collins',
+        messages: [],
+    },
+  ],
+};
 
 const store = createStore(reducer, initialState);
 
@@ -76,7 +77,7 @@ class MessageInput extends React.Component {
   handleSubmit = () => {
     store.dispatch({
       type: 'ADD_MESSAGE',
-      message: this.state.value,
+      text: this.state.value,
     });
     this.setState({
       value: '',
@@ -104,10 +105,10 @@ class MessageInput extends React.Component {
 }
 
 class MessageView extends React.Component {
-  handleClick = (index) => {
+  handleClick = (id) => {
     store.dispatch({
       type: 'DELETE_MESSAGE',
-      index: index,
+      id,
     });
   };
 
@@ -116,9 +117,12 @@ class MessageView extends React.Component {
       <div
         className='comment'
         key={index}
-        onClick={() => this.handleClick(index)}
+        onClick={() => this.handleClick(message.id)}
       >
-        {message}
+        <div className='text'>
+          {message.text}
+          <span className='metadata'>@{message.timestamp}</span>
+        </div>
       </div>
     ));
     return (
