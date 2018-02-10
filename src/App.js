@@ -4,9 +4,17 @@ import uuid from 'uuid';
 
 /*
 
+REDUCER COMPOSITION:
+
 This is how sub-reducers work in tandem with the top-level reducer. 
 The top-level reducer ( reducer() ) breaks up each part of the state tree and 
 delegates the management of those pieces of state to the appropriate reducer.
+
+WHY?
+
+Makes it easier to handle complexity in a growing app.
+As new pieces of state get added, the same pattern is applied to each one.
+
 */
 
 function reducer(state, action) {
@@ -24,50 +32,65 @@ function activeThreadIdReducer(state, action) {
   }
 }
 
-function threadsReducer(state, action) {
-  if (action.type === 'ADD_MESSAGE') {
-    const newMessage = {
-      text: action.text,
-      timestamp: Date.now(),
-      id: uuid.v4()
-    };
-    const threadIndex = state.findIndex(
-      t => t.id === action.threadId
-    );
-    const oldThread = state[threadIndex];
-    const newThread = {
-      ...oldThread,
-      messages: oldThread.messages.concat(newMessage)
+function findThreadIndex(threads, action) {
+  switch (action.type) {
+    case 'ADD_MESSAGE': {
+      return threads.findIndex(
+        t => t.id === action.threadId
+      );
     }
-    return [
+    case 'DELETE_MESSAGE': {
+      return threads.findIndex(
+        t => t.messages.find((m) => (
+          m.id === action.id
+        ))
+      );
+    }
+  }
+}
+
+function threadsReducer(state, action) {
+  switch (action.type) {
+    case 'ADD_MESSAGE':
+    case 'DELETE_MESSAGE': {
+      const threadIndex = findThreadIndex(state, action);
+
+      const oldThread = state[threadIndex];
+      const newThread = {
+        ...oldThread,
+        messages: messagesReducer(oldThread.messages, action)
+      };
+
+      return [
         ...state.slice(0, threadIndex),
         newThread,
         ...state.slice(
           threadIndex + 1, state.length
         )
       ];
-  } else if (action.type === 'DELETE_MESSAGE') {
-    const threadIndex = state.findIndex(
-      (t) => t.messages.find((m) => (
-        m.id === action.id
-      ))
-    );
-    const oldThread = state[threadIndex];
-    const newThread = {
-      ...oldThread,
-      messages: oldThread.messages.filter((m) => (
-        m.id !== action.id
-      ))
-    };
-    return [
-        ...state.slice(0, threadIndex),
-        newThread,
-        ...state.slice(
-          threadIndex + 1, state.length
-        )
-      ];
-  } else {
-    return state;
+    }
+    default: {
+      return state;
+    }
+  }
+}
+
+function messagesReducer(state, action) {
+  switch (action.type) {
+    case 'ADD_MESSAGE': {
+      const newMessage = {
+        text: action.text,
+        timestamp: Date.now(),
+        id: uuid.v4()
+      };
+      return state.concat(newMessage);
+    }
+    case 'DELETE_MESSAGE': {
+      return state.filter(m => m.id !== action.id);
+    }
+    default: {
+      return state;
+    }
   }
 }
 
