@@ -1,6 +1,7 @@
 import React from 'react';
 import { createStore, combineReducers } from 'redux';
 import uuid from 'uuid';
+import { Provider, connect } from 'react-redux';
 
 /*
 
@@ -114,6 +115,28 @@ const App = () => (
   </div>
 );
 
+const mapStateToTabsProps = (state) => {
+  const tabs = state.threads.map(t => (
+    {
+      title: t.title,
+      active: t.id === state.activeThreadId,
+      id: t.id
+    }
+  ));
+  return { tabs };
+};
+
+const mapDispatchToTabsProps = (dispatch) => (
+  {
+    onClick: (id) => (
+      dispatch({
+        type: 'OPEN_THREAD',
+        id
+      })
+    )
+  }
+);
+
 // a stateless functional component here!
 // does not extend React.Component
 const Tabs = (props) => (
@@ -132,42 +155,20 @@ const Tabs = (props) => (
   </div>
 );
 
-class ThreadTabs extends React.Component {
+/* 
+  ThreadTabs is still a container component, but redux's connect()
+  is a shorthand for creating separate container components in the 
+  traditional way: ContainerComp extend React.Component
 
-  // The container component, ThreadTabs connects with the store
-  componentDidMount() {
-    store.subscribe(() => this.forceUpdate());
-  }
+  I.e. a component generator!
+*/
 
-  /*
-    Container component also specifies which presentational component
-    to render
-  */
-  render() {
-    const state = store.getState();
+const ThreadTabs = connect(
+  mapStateToTabsProps,
+  mapDispatchToTabsProps
+)(Tabs);
 
-    const tabs = state.threads.map(t => (
-      {
-        title: t.title,
-        active: t.id === state.activeThreadId,
-        id: t.id
-      }
-    ));
 
-    // The presentational component simply renders an element.
-    return (
-      <Tabs 
-        tabs={tabs}
-        onClick={(id) => (
-          store.dispatch({
-            type: 'OPEN_THREAD',
-            id
-          })
-        )}
-      />
-    )
-  }
-}
 
 class TextFieldSubmit extends React.Component {
   state = {
@@ -238,36 +239,56 @@ const Thread = (props) => (
   </div>
 );
 
-// container component!
-class ThreadDisplay extends React.Component {
-  componentDidMount() {
-    store.subscribe(() => this.forceUpdate());
+// state to props glue function!
+const mapStateToThreadProps = (state) => (
+  {
+    thread: state.threads.find(
+      t => t.id === state.activeThreadId
+    )
   }
-  render() {
-    const state = store.getState();
-    const activeThreadId = state.activeThreadId;
-    const activeThread = state.threads.find(
-      t => t.id === activeThreadId
-    );
-    return (
-      <Thread
-        thread={activeThread}
-        onMessageClick={(id) => (
-          store.dispatch({
-            type: 'DELETE_MESSAGE',
-            id
-          })
-        )}
-        onMessageSubmit={(text) => (
-          store.dispatch({
-            type: 'ADD_MESSAGE',
-            text,
-            threadId: activeThreadId
-          })
-        )}
-      />
-    );
-  }
-}
+);
 
-export default App;
+// dispatch to props glue function!
+const mapDispatchToThreadProps = (dispatch) => (
+  {
+    onMessageClick: (id) => (
+      dispatch({
+        type: 'DELETE_MESSAGE',
+        id
+      })
+    ),
+    dispatch
+  }
+)
+
+const mergeThreadProps = (stateProps, dispatchProps) => (
+  {
+    ...stateProps,
+    ...dispatchProps,
+    // here we're using stuff from stateProps and dispatchProps!
+    // Why? Because we need to be able to dispatch something that
+    // uses a value from state.
+    onMessageSubmit: (text) => (
+      dispatchProps.dispatch({
+        type: 'ADD_MESSAGE',
+        text,
+        threadId: stateProps.thread.id
+      })
+    )
+  }
+);
+
+const ThreadDisplay = connect(
+  mapStateToThreadProps,
+  mapDispatchToThreadProps,
+  mergeThreadProps
+)(Thread);
+
+// The ONLY reference to the store will be here!!!
+const WrappedApp = () => (
+  <Provider store={store} >
+    <App />
+  </Provider>
+);
+
+export default WrappedApp;
