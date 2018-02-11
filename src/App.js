@@ -27,6 +27,32 @@ const reducer = combineReducers({
 
 const store = createStore(reducer);
 
+// action creators keep all actions in one place in their own functions.
+// makes it easier to keep tracks of everything that could 
+// happen when the app grows.
+
+function deleteMessage(id) {
+  return {
+    type: 'DELETE_MESSAGE',
+    id: id
+  };
+}
+
+function addMessage(text, threadId) {
+  return {
+    type: 'ADD_MESSAGE',
+    text: text,
+    threadId: threadId
+  };
+}
+
+function openThread(id) {
+  return {
+    type: 'OPEN_THREAD',
+    id: id
+  };
+}
+
 function activeThreadIdReducer(state = '1-fca2', action) {
   if (action.type === 'OPEN_THREAD') {
     return action.id;
@@ -129,10 +155,7 @@ const mapStateToTabsProps = (state) => {
 const mapDispatchToTabsProps = (dispatch) => (
   {
     onClick: (id) => (
-      dispatch({
-        type: 'OPEN_THREAD',
-        id
-      })
+      dispatch(openThread(id))
     )
   }
 );
@@ -252,12 +275,9 @@ const mapStateToThreadProps = (state) => (
 const mapDispatchToThreadProps = (dispatch) => (
   {
     onMessageClick: (id) => (
-      dispatch({
-        type: 'DELETE_MESSAGE',
-        id
-      })
+      dispatch(deleteMessage(id))
     ),
-    dispatch
+    dispatch: dispatch
   }
 )
 
@@ -269,11 +289,9 @@ const mergeThreadProps = (stateProps, dispatchProps) => (
     // Why? Because we need to be able to dispatch something that
     // uses a value from state.
     onMessageSubmit: (text) => (
-      dispatchProps.dispatch({
-        type: 'ADD_MESSAGE',
-        text,
-        threadId: stateProps.thread.id
-      })
+      dispatchProps.dispatch(
+        addMessage(text, stateProps.thread.id)
+      )
     )
   }
 );
